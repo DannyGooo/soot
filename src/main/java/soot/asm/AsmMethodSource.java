@@ -21,7 +21,6 @@ package soot.asm;
  * <http://www.gnu.org/licenses/lgpl-2.1.html>.
  * #L%
  */
-
 import static org.objectweb.asm.Opcodes.ACONST_NULL;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ANEWARRAY;
@@ -528,20 +527,26 @@ public class AsmMethodSource implements MethodSource {
     return AsmUtil.isDWord(t) ? popStackConstDual() : popStackConst();
   }
 
-  void setUnit(AbstractInsnNode insn, Unit u) {
-    if (Options.v().keep_line_number() && lastLineNumber >= 0) {
-      Tag lineTag = u.getTag(LineNumberTag.NAME);
-      if (lineTag == null) {
-        lineTag = new LineNumberTag(lastLineNumber);
-        u.addTag(lineTag);
-      } else if (((LineNumberTag) lineTag).getLineNumber() != lastLineNumber) {
-        throw new RuntimeException("Line tag mismatch");
-      }
+  protected void setUnit(AbstractInsnNode insn, Unit u) {
+    if (lastLineNumber >= 0) {
+      setLineNumber(u, lastLineNumber);
     }
 
     Unit o = units.put(insn, u);
     if (o != null) {
       throw new AssertionError(insn.getOpcode() + " already has a unit, " + o);
+    }
+  }
+
+  protected void setLineNumber(Unit u, int lineNumber) {
+    if (Options.v().keep_line_number()) {
+      Tag lineTag = u.getTag(LineNumberTag.NAME);
+      if (lineTag == null) {
+        lineTag = new LineNumberTag(lineNumber);
+        u.addTag(lineTag);
+      } else if (((LineNumberTag) lineTag).getLineNumber() != lineNumber) {
+        throw new RuntimeException("Line tag mismatch");
+      }
     }
   }
 
