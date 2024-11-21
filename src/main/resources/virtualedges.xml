@@ -584,7 +584,7 @@
 	<!-- ReactiveX -->
 	<edge>
 		<source invoketype="instance"
-			declaringclass="io.reactivex.rxjava3.core.Observable<T>"
+			declaringclass="io.reactivex.rxjava3.core.Observable"
 			subsignature="io.reactivex.Observable filter(io.reactivex.functions.Predicate)" />
 		<targets>
 			<direct subsignature="boolean test(java.lang.Object)"
@@ -593,7 +593,7 @@
 	</edge>
 	<edge>
 		<source invoketype="instance"
-			declaringclass="io.reactivex.rxjava3.core.Single<T>"
+			declaringclass="io.reactivex.rxjava3.core.Single"
 			subsignature="io.reactivex.disposables.Disposable subscribe(io.reactivex.functions.Consumer)" />
 		<targets>
 			<direct subsignature="void accept(java.lang.Object)"
@@ -602,7 +602,7 @@
 	</edge>
 	<edge>
 		<source invoketype="instance"
-			declaringclass="io.reactivex.rxjava3.core.Single<T>"
+			declaringclass="io.reactivex.rxjava3.core.Single"
 			subsignature="io.reactivex.Single fromCallable(java.util.concurrent.Callable)" />
 		<targets>
 			<direct subsignature="java.lang.Object call()"
@@ -611,7 +611,7 @@
 	</edge>
 	<edge>
 		<source invoketype="instance"
-			declaringclass="io.reactivex.rxjava3.core.Single<T>"
+			declaringclass="io.reactivex.rxjava3.core.Single"
 			subsignature="io.reactivex.Single create(io.reactivex.SingleOnSubscribe)" />
 		<targets>
 			<direct
@@ -621,7 +621,7 @@
 	</edge>
 	<edge>
 		<source invoketype="instance"
-			declaringclass="io.reactivex.rxjava3.core.Maybe<T>"
+			declaringclass="io.reactivex.rxjava3.core.Maybe"
 			subsignature="io.reactivex.Maybe filter(io.reactivex.functions.Predicate)" />
 		<targets>
 			<direct subsignature="boolean test(java.lang.Object)"
@@ -718,10 +718,10 @@
 				target-position="argument" index="2" />
 		</targets>
 	</edge>
-
+	
 	<edge>
 		<source invoketype="instance"
-			declaringclass="com.bumptech.glide.BitmapRequestBuilder"
+		declaringclass="com.bumptech.glide.BitmapRequestBuilder"
 			subsignature="com.bumptech.glide.BitmapRequestBuilder listener(com.bumptech.glide.request.RequestListener)" />
 		<targets>
 			<direct
