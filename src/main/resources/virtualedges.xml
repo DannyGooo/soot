@@ -2,7 +2,7 @@
 <virtualedges>
 	<!-- Thread.start() -->
 	<edge>
-		<source invoketype="instance" subsignature="void start()" />
+		<source declaringclass="java.lang.Thread" invoketype="instance" subsignature="void start()" />
 		<targets>
 			<direct subsignature="void run()" target-position="base" />
 			<indirect subsignature="void &lt;init&gt;(java.lang.Runnable)" target-position="base">
@@ -26,7 +26,7 @@
 	<!-- execute and post methods -->
 	<edge type="EXECUTOR">
 		<source invoketype="instance"
-			subsignature="void execute(java.lang.Runnable)" />
+			declaringclass="java.util.concurrent.Executor" subsignature="void execute(java.lang.Runnable)" />
 		<targets>
 			<direct subsignature="void run()" target-position="argument"
 				index="0" />
@@ -34,7 +34,7 @@
 	</edge>
 	<edge type="EXECUTOR">
 		<source invoketype="instance"
-			subsignature="boolean post(java.lang.Runnable)" />
+			declaringclass="java.util.concurrent.Executor" subsignature="boolean post(java.lang.Runnable)" />
 		<targets>
 			<direct subsignature="void run()" target-position="argument"
 				index="0" />
@@ -42,7 +42,7 @@
 	</edge>
 	<edge type="EXECUTOR">
 		<source invoketype="instance"
-			subsignature="boolean postAtFrontOfQueue(java.lang.Runnable)" />
+			declaringclass="java.util.concurrent.Executor" subsignature="boolean postAtFrontOfQueue(java.lang.Runnable)" />
 		<targets>
 			<direct subsignature="void run()" target-position="argument"
 				index="0" />
@@ -50,7 +50,7 @@
 	</edge>
 	<edge type="EXECUTOR">
 		<source invoketype="instance"
-			subsignature="boolean postAtTime(java.lang.Runnable,long)" />
+			declaringclass="java.util.concurrent.Executor" subsignature="boolean postAtTime(java.lang.Runnable,long)" />
 		<targets>
 			<direct subsignature="void run()" target-position="argument"
 				index="0" />
@@ -58,7 +58,7 @@
 	</edge>
 	<edge type="EXECUTOR">
 		<source invoketype="instance"
-			subsignature="boolean postAtTime(java.lang.Runnable,java.lang.Object,long)" />
+			declaringclass="java.util.concurrent.Executor" subsignature="boolean postAtTime(java.lang.Runnable,java.lang.Object,long)" />
 		<targets>
 			<direct subsignature="void run()" target-position="argument"
 				index="0" />
@@ -66,7 +66,7 @@
 	</edge>
 	<edge type="EXECUTOR">
 		<source invoketype="instance"
-			subsignature="boolean postDelayed(java.lang.Runnable,long)" />
+			declaringclass="java.util.concurrent.Executor" subsignature="boolean postDelayed(java.lang.Runnable,long)" />
 		<targets>
 			<direct subsignature="void run()" target-position="argument"
 				index="0" />
@@ -76,7 +76,7 @@
 	<!-- Android runOnUIThread -->
 	<edge type="EXECUTOR">
 		<source invoketype="instance"
-			subsignature="void runOnUiThread(java.lang.Runnable)" />
+			declaringclass="android.app.Activity" subsignature="void runOnUiThread(java.lang.Runnable)" />
 		<targets>
 			<direct subsignature="void run()" target-position="argument"
 				index="0" />
@@ -86,7 +86,7 @@
 	<!-- Handlers -->
 	<edge type="HANDLER">
 		<source invoketype="instance"
-			subsignature="boolean sendEmptyMessage(int)" />
+			declaringclass="android.os.Handler" subsignature="boolean sendEmptyMessage(int)" />
 		<targets>
 			<direct subsignature="void handleMessage(android.os.Message)"
 				target-position="base" />
@@ -94,7 +94,7 @@
 	</edge>
 	<edge type="HANDLER">
 		<source invoketype="instance"
-			subsignature="boolean sendEmptyMessageAtTime(int,long)" />
+			declaringclass="android.os.Handler" subsignature="boolean sendEmptyMessageAtTime(int,long)" />
 		<targets>
 			<direct subsignature="void handleMessage(android.os.Message)"
 				target-position="base" />
@@ -110,7 +110,7 @@
 	</edge>
 	<edge type="HANDLER">
 		<source invoketype="instance"
-			subsignature="boolean postAtTime(java.lang.Runnable,long)" />
+			declaringclass="android.os.Handler" subsignature="boolean postAtTime(java.lang.Runnable,long)" />
 		<targets>
 			<direct subsignature="void handleMessage(android.os.Message)"
 				target-position="base" />
@@ -118,7 +118,7 @@
 	</edge>
 	<edge type="HANDLER">
 		<source invoketype="instance"
-			subsignature="boolean sendMessageAtFrontOfQueue(android.os.Message)" />
+			declaringclass="android.os.Handler" subsignature="boolean sendMessageAtFrontOfQueue(android.os.Message)" />
 		<targets>
 			<direct subsignature="void handleMessage(android.os.Message)"
 				target-position="base" />
@@ -126,7 +126,7 @@
 	</edge>
 	<edge type="HANDLER">
 		<source invoketype="instance"
-			subsignature="boolean sendMessageAtTime(android.os.Message,long)" />
+			declaringclass="android.os.Handler" subsignature="boolean sendMessageAtTime(android.os.Message,long)" />
 		<targets>
 			<direct subsignature="void handleMessage(android.os.Message)"
 				target-position="base" />
@@ -134,7 +134,7 @@
 	</edge>
 	<edge type="HANDLER">
 		<source invoketype="instance"
-			subsignature="boolean sendMessageDelayed(android.os.Message,long)" />
+			declaringclass="android.os.Handler" subsignature="boolean sendMessageDelayed(android.os.Message,long)" />
 		<targets>
 			<direct subsignature="void handleMessage(android.os.Message)"
 				target-position="base" />
@@ -142,7 +142,7 @@
 	</edge>
 	<edge>
 		<source invoketype="instance"
-			subsignature="void send(org.eclipse.jetty.client.api.Response$CompleteListener)" />
+			 declaringclass="org.eclipse.jetty.client.api.Request" subsignature="void send(org.eclipse.jetty.client.api.Response$CompleteListener)" />
 		<targets>
 			<direct
 				subsignature="void onComplete(org.eclipse.jetty.client.api.Result)"
@@ -151,7 +151,7 @@
 	</edge>
 	<edge>
 		<source invoketype="instance"
-			subsignature="java.util.concurrent.Future execute(org.apache.http.client.methods.HttpUriRequest,org.apache.http.concurrent.FutureCallback)>($r2, $r3)" />
+		  	declaringclass="org.apache.http.nio.client.HttpAsyncClient" subsignature="java.util.concurrent.Future execute(org.apache.http.client.methods.HttpUriRequest,org.apache.http.concurrent.FutureCallback)" />
 		<targets>
 			<direct
 				subsignature="void completed(org.apache.http.HttpResponse)"
@@ -163,7 +163,7 @@
 	<!-- Android AsyncTask -->
 	<edge type="ASYNCTASK">
 		<source invoketype="instance"
-			subsignature="android.os.AsyncTask execute(java.lang.Object[])" />
+			declaringclass="android.os.AsyncTask" subsignature="android.os.AsyncTask execute(java.lang.Object[])" />
 		<targets>
 			<direct
 				subsignature="java.lang.Object doInBackground(java.lang.Object[])"
@@ -176,7 +176,7 @@
 	</edge>
 	<edge>
 		<source invoketype="instance"
-			subsignature="android.os.AsyncTask execute(java.lang.Object[])" />
+			declaringclass="android.os.AsyncTask" subsignature="android.os.AsyncTask execute(java.lang.Object[])" />
 		<targets>
 			<direct subsignature="void onPreExecute()"
 				target-position="base" />
@@ -235,7 +235,7 @@
 
 	<edge>
 		<source invoketype="instance"
-			subsignature="com.android.volley.Request add(com.android.volley.Request)" />
+			declaringclass="com.android.volley.RequestQueue" subsignature="com.android.volley.Request add(com.android.volley.Request)" />
 		<targets>
 			<indirect target-position="argument" index="0"
 				subsignature="void &lt;init&gt;(int,java.lang.String,com.android.volley.Response$ErrorListener)">
@@ -274,7 +274,7 @@
 	<!-- java.io.Files list predicate -->
 	<edge>
 		<source invoketype="instance"
-			subsignature="java.lang.String[] list(java.io.FilenameFilter)" />
+			declaringclass="java.io.File" subsignature="java.lang.String[] list(java.io.FilenameFilter)" />
 		<targets>
 			<direct
 				subsignature="boolean accept(java.io.File,java.lang.String)"
@@ -283,7 +283,7 @@
 	</edge>
 	<edge>
 		<source invoketype="instance"
-			subsignature="java.io.File[] listFiles(java.io.FilenameFilter)" />
+			declaringclass="java.io.File" subsignature="java.io.File[] listFiles(java.io.FilenameFilter)" />
 		<targets>
 			<direct
 				subsignature="boolean accept(java.io.File,java.lang.String)"
@@ -292,7 +292,7 @@
 	</edge>
 	<edge>
 		<source invoketype="instance"
-			subsignature="java.io.File[] listFiles(java.io.FileFilter)" />
+			declaringclass="java.io.File" subsignature="java.io.File[] listFiles(java.io.FileFilter)" />
 		<targets>
 			<direct subsignature="boolean accept(java.io.File)"
 				target-position="argument" index="0" />
@@ -302,7 +302,7 @@
 	<!-- Java reflection -->
 	<edge>
 		<source invoketype="instance"
-			subsignature="java.lang.Object newProxyInstance(java.lang.ClassLoader,java.lang.Class[],java.lang.reflect.InvocationHandler)" />
+			declaringclass="java.lang.reflect.Proxy" subsignature="java.lang.Object newProxyInstance(java.lang.ClassLoader,java.lang.Class[],java.lang.reflect.InvocationHandler)" />
 		<targets>
 			<direct
 				subsignature="java.lang.Object invoke(java.lang.Object,java.lang.reflect.Method,java.lang.Object[])"
@@ -313,7 +313,7 @@
 	<!-- java.net.URLStreamHandler -->
 	<edge>
 		<source invoketype="instance"
-			subsignature="void setURLStreamHandlerFactory(java.net.URLStreamHandlerFactory)" />
+			declaringclass="java.net.URL" subsignature="void setURLStreamHandlerFactory(java.net.URLStreamHandlerFactory)" />
 		<targets>
 			<direct
 				subsignature="java.net.URLStreamHandler createURLStreamHandler(java.lang.String)"
