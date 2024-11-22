@@ -45,7 +45,7 @@ import soot.ShortType;
 import soot.TrapManager;
 import soot.Type;
 import soot.Value;
-import soot.dotnet.types.DotnetBasicTypes;
+import soot.dotnet.types.DotNetBasicTypes;
 import soot.jimple.AddExpr;
 import soot.jimple.AndExpr;
 import soot.jimple.ArrayRef;
@@ -103,7 +103,7 @@ public class AugEvalFunction implements IEvalFunction {
     this.jb = jb;
   }
 
-  public static Type eval_(Typing tg, Value expr, Stmt stmt, JimpleBody jb) {
+  public static Type eval_(ITyping tg, Value expr, Stmt stmt, JimpleBody jb) {
     if (expr instanceof ThisRef) {
       return ((ThisRef) expr).getType();
     } else if (expr instanceof ParameterRef) {
@@ -193,7 +193,7 @@ public class AugEvalFunction implements IEvalFunction {
           case "java.lang.Cloneable":
           case "java.lang.Object":
           case "java.io.Serializable":
-          case DotnetBasicTypes.SYSTEM_ARRAY:
+          case DotNetBasicTypes.SYSTEM_ARRAY:
             return new WeakObjectType(name);
           default:
             return BottomType.v();
@@ -257,7 +257,7 @@ public class AugEvalFunction implements IEvalFunction {
   }
 
   @Override
-  public Collection<Type> eval(Typing tg, Value expr, Stmt stmt) {
+  public Collection<Type> eval(ITyping tg, Value expr, Stmt stmt) {
     return Collections.<Type>singletonList(eval_(tg, expr, stmt, this.jb));
   }
 }

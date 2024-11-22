@@ -34,10 +34,14 @@ import com.google.common.collect.ArrayListMultimap;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -62,8 +66,15 @@ import org.jf.dexlib2.util.MethodUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import soot.ArrayType;
 import soot.Body;
+import soot.BooleanConstant;
+import soot.BooleanType;
+import soot.ByteType;
 import soot.DoubleType;
+import soot.FloatType;
+import soot.IntType;
+import soot.IntegerType;
 import soot.Local;
 import soot.LongType;
 import soot.Modifier;
@@ -71,13 +82,16 @@ import soot.NullType;
 import soot.PackManager;
 import soot.PhaseOptions;
 import soot.PrimType;
+import soot.RefLikeType;
 import soot.RefType;
 import soot.Scene;
+import soot.ShortType;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Trap;
 import soot.Type;
 import soot.Unit;
+import soot.UnitPatchingChain;
 import soot.UnknownType;
 import soot.Value;
 import soot.ValueBox;
@@ -88,21 +102,51 @@ import soot.dexpler.instructions.MoveExceptionInstruction;
 import soot.dexpler.instructions.OdexInstruction;
 import soot.dexpler.instructions.PseudoInstruction;
 import soot.dexpler.instructions.RetypeableInstruction;
+import soot.dexpler.tags.ByteOpTag;
+import soot.dexpler.tags.DexplerTag;
+import soot.dexpler.tags.DoubleOpTag;
+import soot.dexpler.tags.FloatOpTag;
+import soot.dexpler.tags.IntOpTag;
+import soot.dexpler.tags.IntOrFloatOpTag;
+import soot.dexpler.tags.LongOpTag;
+import soot.dexpler.tags.LongOrDoubleOpTag;
+import soot.dexpler.tags.ShortOpTag;
 import soot.dexpler.typing.DalvikTyper;
+import soot.jimple.AddExpr;
+import soot.jimple.AndExpr;
+import soot.jimple.ArrayRef;
 import soot.jimple.AssignStmt;
+import soot.jimple.BinopExpr;
 import soot.jimple.CastExpr;
 import soot.jimple.CaughtExceptionRef;
 import soot.jimple.ConditionExpr;
 import soot.jimple.Constant;
 import soot.jimple.DefinitionStmt;
+import soot.jimple.DivExpr;
+import soot.jimple.DoubleConstant;
 import soot.jimple.EqExpr;
+import soot.jimple.FloatConstant;
+import soot.jimple.GotoStmt;
 import soot.jimple.IfStmt;
 import soot.jimple.IntConstant;
+import soot.jimple.InvokeExpr;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
+import soot.jimple.LongConstant;
+import soot.jimple.MulExpr;
 import soot.jimple.NeExpr;
+import soot.jimple.NegExpr;
+import soot.jimple.NopStmt;
 import soot.jimple.NullConstant;
 import soot.jimple.NumericConstant;
+import soot.jimple.OrExpr;
+import soot.jimple.RemExpr;
+import soot.jimple.ShlExpr;
+import soot.jimple.ShrExpr;
+import soot.jimple.Stmt;
+import soot.jimple.SubExpr;
+import soot.jimple.UshrExpr;
+import soot.jimple.XorExpr;
 import soot.jimple.internal.JIdentityStmt;
 import soot.jimple.toolkits.base.Aggregator;
 import soot.jimple.toolkits.scalar.ConditionalBranchFolder;
@@ -116,15 +160,26 @@ import soot.jimple.toolkits.scalar.MethodStaticnessCorrector;
 import soot.jimple.toolkits.scalar.NopEliminator;
 import soot.jimple.toolkits.scalar.UnconditionalBranchFolder;
 import soot.jimple.toolkits.scalar.UnreachableCodeEliminator;
-import soot.jimple.toolkits.typing.TypeAssigner;
+import soot.jimple.toolkits.typing.fast.BottomType;
+import soot.jimple.toolkits.typing.fast.DefaultTypingStrategy;
+import soot.jimple.toolkits.typing.fast.IHierarchy;
+import soot.jimple.toolkits.typing.fast.ITyping;
+import soot.jimple.toolkits.typing.fast.ITypingStrategy;
+import soot.jimple.toolkits.typing.fast.Integer1Type;
+import soot.jimple.toolkits.typing.fast.NeedCastResult;
+import soot.jimple.toolkits.typing.fast.TypePromotionUseVisitor;
 import soot.options.JBOptions;
 import soot.options.Options;
 import soot.tagkit.LineNumberTag;
 import soot.tagkit.SourceLineNumberTag;
+import soot.tagkit.Tag;
 import soot.toolkits.exceptions.TrapTightener;
 import soot.toolkits.scalar.LocalPacker;
 import soot.toolkits.scalar.LocalSplitter;
+import soot.toolkits.scalar.SharedInitializationLocalSplitter;
 import soot.toolkits.scalar.UnusedLocalEliminator;
+import soot.util.HashMultiMap;
+import soot.util.MultiMap;
 
 /**
  * A DexBody contains the code of a DexMethod and is used as a wrapper around JimpleBody in the jimplification process.
@@ -470,6 +525,10 @@ public class DexBody {
     return instructionAtAddress.get(key);
   }
 
+  protected ITypingStrategy getTypingStrategy() {
+    return new DefaultTypingStrategy();
+  }
+
   /**
    * Return the jimple equivalent of this body.
    *
@@ -477,7 +536,6 @@ public class DexBody {
    *          the SootMethod that contains this body
    */
   public Body jimplify(Body b, SootMethod m) {
-
     final Jimple jimple = Jimple.v();
     final UnknownType unknownType = UnknownType.v();
     final NullConstant nullConstant = NullConstant.v();
@@ -686,9 +744,9 @@ public class DexBody {
     // Make sure that we don't have any overlapping uses due to returns
     DexReturnInliner.v().transform(jBody);
 
-    // split first to find undefined uses
-    getLocalSplitter().transform(jBody);
+    new SharedInitializationLocalSplitter(DalvikThrowAnalysis.v()).transform(jBody);
 
+    getLocalSplitter().transform(jBody);
     // Remove dead code and the corresponding locals before assigning types
     getUnreachableCodeEliminator().transform(jBody);
     DeadAssignmentEliminator.v().transform(jBody);
@@ -771,8 +829,214 @@ public class DexBody {
       UnconditionalBranchFolder.v().transform(jBody);
     }
     DexFillArrayDataTransformer.v().transform(jBody);
+    // SharedInitializationLocalSplitter destroys the inserted casts, so we have to reintroduce them
+    getLocalSplitter().transform(jBody);
 
-    TypeAssigner.v().transform(jBody);
+    MultiMap<Local, Type> maybetypeConstraints = new HashMultiMap<>();
+    handleKnownDexTypes(b, jimple);
+    handleKnownDexArrayTypes(b, jimple, maybetypeConstraints);
+    Map<Local, Collection<Type>> definiteConstraints = new HashMap<>();
+    for (Local l : b.getLocals()) {
+      Type type = l.getType();
+      if (type instanceof PrimType) {
+        definiteConstraints.put(l, Collections.singleton(type));
+      }
+    }
+
+    new soot.jimple.toolkits.typing.fast.TypeResolver(jBody) {
+      protected soot.jimple.toolkits.typing.fast.TypePromotionUseVisitor createTypePromotionUseVisitor(JimpleBody jb,
+          ITyping tg) {
+        return new TypePromotionUseVisitor(jb, tg) {
+          protected boolean allowConversion(Type ancestor, Type child) {
+            if (ancestor == child) {
+              return true;
+            }
+            if ((ancestor instanceof IntegerType || ancestor instanceof FloatType)
+                && (child instanceof IntegerType || child instanceof FloatType)) {
+              return true;
+            }
+            if ((ancestor instanceof LongType || ancestor instanceof DoubleType)
+                && (child instanceof LongType || child instanceof DoubleType)) {
+              return true;
+            }
+            return super.allowConversion(ancestor, child);
+          }
+
+          public Type promote(Type tlow, Type thigh) {
+            if (thigh instanceof BooleanType && tlow instanceof IntegerType) {
+              //Well... in Android's dex code, 0 = false and everything else is true
+              //While the compiler should never generate such code, there can be found code like this in the wild.
+              //And Android accepts it!
+              //Thus, we allow the type promotion and then correct the boolean constants
+              return thigh;
+            }
+            if (tlow instanceof IntegerType) {
+              if (thigh instanceof FloatType || thigh instanceof IntType) {
+                return thigh;
+              }
+            }
+            return super.promote(tlow, thigh);
+
+          }
+        };
+
+      }
+
+      protected Type getDefiniteType(Local v) {
+        Collection<Type> r = definiteConstraints.get(v);
+        if (r != null && r.size() == 1) {
+          return r.iterator().next();
+        } else {
+          return null;
+        }
+      }
+
+      protected soot.jimple.toolkits.typing.fast.BytecodeHierarchy createBytecodeHierarchy() {
+        return new soot.jimple.toolkits.typing.fast.BytecodeHierarchy() {
+          public java.util.Collection<Type> lcas(Type a, Type b, boolean useWeakObjectType) {
+            Collection<Type> s = super.lcas(a, b, useWeakObjectType);
+            if (s.isEmpty()) {
+              //when we merge a null constant and anything non-primitive, we use the non-primitive type
+              if (a instanceof Integer1Type && b instanceof RefLikeType) {
+                return Collections.singleton(b);
+              }
+              if (b instanceof Integer1Type && a instanceof RefLikeType) {
+                return Collections.singleton(a);
+              }
+            }
+            return s;
+          }
+        };
+      }
+
+      @Override
+      protected Collection<Type> reduceToAllowedTypesForLocal(Collection<Type> lcas, Local v) {
+        Collection<Type> t = definiteConstraints.get(v);
+        if (t != null) {
+          return t;
+        }
+        Set<Type> constraints = maybetypeConstraints.get(v);
+        if (constraints.isEmpty()) {
+          return lcas;
+        }
+        if (lcas.size() == 1) {
+          Type e = lcas.iterator().next();
+          //Only one element, we can check this directly
+          if (!constraints.contains(e)) {
+            // No typing left
+            Set<Type> res = new HashSet<>(constraints);
+            res.add(e);
+            return res;
+          } else {
+            return lcas;
+          }
+        }
+        Set<Type> res = new HashSet<>(lcas);
+        res.retainAll(constraints);
+        if (res.isEmpty()) {
+          // No typing left
+          res.addAll(lcas);
+          res.addAll(constraints);
+          return res;
+        }
+
+        return res;
+      }
+
+      protected soot.jimple.toolkits.typing.fast.ITypingStrategy getTypingStrategy() {
+        ITypingStrategy useTyping = DexBody.this.getTypingStrategy();
+        return useTyping;
+      }
+
+      protected CastInsertionUseVisitor createCastInsertionUseVisitor(ITyping tg,
+          soot.jimple.toolkits.typing.fast.IHierarchy h, boolean countOnly) {
+        return new CastInsertionUseVisitor(countOnly, jBody, tg, h) {
+
+          @Override
+          protected boolean eliminateUnnecessaryCasts() {
+            //We do not want to eliminate casts that were explicitly present in the original dex code
+            //Otherwise we have problems in certain edge cases, were our typings are suboptimal 
+            //with respect to float/int and double/long
+            return false;
+          }
+
+          @Override
+          protected NeedCastResult needCast(Type target, Type from, IHierarchy h) {
+            NeedCastResult r = super.needCast(target, from, h);
+            if (r == NeedCastResult.NEEDS_CAST) {
+              if (target instanceof IntType || target instanceof FloatType) {
+                if (from instanceof IntegerType || from instanceof FloatType) {
+                  return NeedCastResult.DISCOURAGED_TARGET_TYPE;
+                }
+              }
+              if (target instanceof LongType || target instanceof DoubleType) {
+                if (from instanceof IntegerType || from instanceof LongType || from instanceof DoubleType) {
+                  return NeedCastResult.DISCOURAGED_TARGET_TYPE;
+                }
+              }
+              return r;
+            }
+
+            //we need to this since some types are final already. Otherwise,
+            //we get no casts at all.
+            if (target instanceof PrimType && from instanceof PrimType) {
+              if (!from.isAllowedInFinalCode()) {
+                from = from.getDefaultFinalType();
+              }
+              if (target.isAllowedInFinalCode()) {
+                if (target == from) {
+                  return NeedCastResult.DOESNT_NEED_CAST;
+                }
+                if (target instanceof IntType || target instanceof FloatType) {
+                  if (from instanceof IntegerType || from instanceof FloatType) {
+                    return NeedCastResult.DISCOURAGED_TARGET_TYPE;
+                  }
+                }
+                if (target instanceof LongType || target instanceof DoubleType) {
+                  if (from instanceof IntegerType || from instanceof LongType || from instanceof DoubleType) {
+                    return NeedCastResult.DISCOURAGED_TARGET_TYPE;
+                  }
+                }
+                return NeedCastResult.NEEDS_CAST;
+              }
+            }
+            return NeedCastResult.DOESNT_NEED_CAST;
+          }
+
+          @Override
+          public Value visit(Value op, Type useType, Stmt stmt, boolean checkOnly) {
+            if (op instanceof LongConstant && useType instanceof DoubleType) {
+              // no cast necessary for Dex
+              return op;
+            }
+            if (op instanceof IntConstant && useType instanceof FloatType) {
+              // no cast necessary for Dex
+              return op;
+            }
+            return super.visit(op, useType, stmt, checkOnly);
+          }
+        };
+
+      }
+    }.inferTypes();
+    for (Unit u : jBody.getUnits()) {
+      Stmt s = (Stmt) u;
+      if (s.containsArrayRef() && s instanceof AssignStmt) {
+        AssignStmt assign = (AssignStmt) s;
+        Value lop = assign.getLeftOp();
+        Value rop = assign.getRightOp();
+        if (lop.getType() instanceof FloatType && rop instanceof IntConstant) {
+          IntConstant intC = (IntConstant) rop;
+          assign.setRightOp(FloatConstant.v(Float.intBitsToFloat(intC.value)));
+        }
+        if (lop.getType() instanceof DoubleType && rop instanceof LongConstant) {
+          LongConstant longC = (LongConstant) rop;
+          assign.setRightOp(DoubleConstant.v(Double.longBitsToDouble(longC.value)));
+        }
+      }
+    }
+
+    checkUnrealizableCasts();
 
     // Shortcut: Reduce array initializations
     // We need to do this after typing, because otherwise we run into problems
@@ -872,7 +1136,6 @@ public class DexBody {
     // again lead to unused locals which we have to remove.
     LocalPacker.v().transform(jBody);
     UnusedLocalEliminator.v().transform(jBody);
-    PackManager.v().getTransform("jb.lns").apply(jBody);
 
     // Some apps reference static fields as instance fields. We fix this
     // on the fly.
@@ -932,12 +1195,32 @@ public class DexBody {
     DexReturnPacker.v().transform(jBody);
 
     for (Unit u : jBody.getUnits()) {
+
       if (u instanceof AssignStmt) {
-        AssignStmt ass = (AssignStmt) u;
-        if (ass.getRightOp() instanceof CastExpr) {
-          CastExpr c = (CastExpr) ass.getRightOp();
+        final AssignStmt ass = (AssignStmt) u;
+        final Value rop = ass.getRightOp();
+        if (rop instanceof CastExpr) {
+          CastExpr c = (CastExpr) rop;
           if (c.getType() instanceof NullType) {
             ass.setRightOp(nullConstant);
+          }
+        }
+        if (rop instanceof IntConstant) {
+          if (ass.getLeftOp().getType() instanceof BooleanType) {
+            ass.setRightOp(fixBooleanConstant((IntConstant) rop));
+          }
+        }
+
+      }
+      Stmt s = (Stmt) u;
+      if (s.containsInvokeExpr()) {
+        InvokeExpr inv = s.getInvokeExpr();
+        for (int p = 0; p < inv.getArgCount(); p++) {
+          if (inv.getMethodRef().getParameterType(p) instanceof BooleanType) {
+            Value arg = inv.getArg(p);
+            if (arg instanceof IntConstant) {
+              inv.setArg(p, fixBooleanConstant((IntConstant) arg));
+            }
           }
         }
       }
@@ -946,7 +1229,8 @@ public class DexBody {
         // If the body references a phantom class in a
         // CaughtExceptionRef,
         // we must manually fix the hierarchy
-        if (def.getLeftOp() instanceof Local && def.getRightOp() instanceof CaughtExceptionRef) {
+        Value rop = def.getRightOp();
+        if (def.getLeftOp() instanceof Local && rop instanceof CaughtExceptionRef) {
           Type t = def.getLeftOp().getType();
           if (t instanceof RefType) {
             RefType rt = (RefType) t;
@@ -957,6 +1241,7 @@ public class DexBody {
           }
         }
       }
+      removeDexplerTags(u);
     }
 
     // Replace local type null_type by java.lang.Object.
@@ -970,7 +1255,7 @@ public class DexBody {
     //
     for (Local l : jBody.getLocals()) {
       Type t = l.getType();
-      if (t instanceof NullType) {
+      if (t instanceof NullType || t instanceof BottomType) {
         l.setType(objectType);
       }
     }
@@ -978,9 +1263,275 @@ public class DexBody {
     // Must be last to ensure local ordering does not change
     PackManager.v().getTransform("jb.lns").apply(jBody);
 
+    // Check that we don't have anything weird
+    checkUnrealizableCasts();
+
+    UnitPatchingChain units = jBody.getUnits();
+    Unit u = units.getFirst();
+    while (u != null) {
+      if (u instanceof GotoStmt) {
+        GotoStmt gt = (GotoStmt) u;
+        if (gt.getTarget() == gt) {
+          //There are crazy cases like that in the wild.
+          NopStmt nop = jimple.newNopStmt();
+          units.insertBefore(nop, u);
+          gt.setTarget(nop);
+        }
+      }
+      u = units.getSuccOf(u);
+    }
     // t_whole_jimplification.end();
 
     return jBody;
+  }
+
+  /**
+   * In Dex, every int is a valid boolean.
+   * 0 = false and everything else = true.
+   * @param arg
+   * @return
+   */
+  private static BooleanConstant fixBooleanConstant(IntConstant arg) {
+    return BooleanConstant.v(arg.value != 0);
+  }
+
+  /**
+   * For non-object array instructions, we know from the bytecode already what the types are, or at least we can reduce it to
+   * two possibilities (int/float or float/double).
+   * 
+   * @param b
+   *          the body
+   * @param jimple
+   *          the jimple instance to use (caching is slightly faster)
+   * @param typeConstraints
+   *          type constraints (these might be multiple valid possibilities)
+   */
+  private void handleKnownDexArrayTypes(Body b, Jimple jimple, MultiMap<Local, Type> typeConstraints) {
+
+    UnitPatchingChain units = jBody.getUnits();
+    Unit u = units.getFirst();
+    while (u != null) {
+      if (u instanceof AssignStmt) {
+        AssignStmt assign = ((AssignStmt) u);
+        Value rop = assign.getRightOp();
+        if (rop instanceof ArrayRef) {
+          for (Tag tg : u.getTags()) {
+            if (tg instanceof DexplerTag) {
+              DexplerTag dexplerTypeTag = (DexplerTag) tg;
+              Type definiteType = dexplerTypeTag.getDefiniteType();
+              if (definiteType != null) {
+                Local prev = (Local) assign.getLeftOp();
+                prev.setType(definiteType);
+                ArrayType tp = ArrayType.v(definiteType, 1);
+
+                ArrayRef array = (ArrayRef) rop;
+                Local lbase = (Local) array.getBase();
+                lbase.setType(tp);
+
+              } else if (tg instanceof IntOrFloatOpTag || tg instanceof LongOrDoubleOpTag) {
+                // sadly, we don't know for sure. But: we know that it's either of these two.
+                // we need a fresh local or each instance, no re-use allowed.
+                Local l = jimple.newLocal(freshLocalName("lcl" + tg.getName()), UnknownType.v());
+                b.getLocals().add(l);
+                ArrayRef array = (ArrayRef) rop;
+                units.insertBefore(jimple.newAssignStmt(l, array.getBase()), u);
+                array.setBase(l);
+                if (typeConstraints != null) {
+                  if (tg instanceof IntOrFloatOpTag) {
+                    typeConstraints.put(l, ArrayType.v(IntType.v(), 1));
+                    typeConstraints.put(l, ArrayType.v(FloatType.v(), 1));
+                  } else {
+                    typeConstraints.put(l, ArrayType.v(LongType.v(), 1));
+                    typeConstraints.put(l, ArrayType.v(DoubleType.v(), 1));
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      u = units.getSuccOf(u);
+    }
+  }
+
+  /**
+   * For several instructions, we know from the bytecode already what the types are. We use that knowledge here to help the
+   * type assigner.
+   * 
+   * @param b
+   *          the body
+   * @param jimple
+   *          the jimple instance to use (caching is slightly faster)
+   */
+  private void handleKnownDexTypes(Body b, final Jimple jimple) {
+    UnitPatchingChain units = jBody.getUnits();
+    Unit u = units.getFirst();
+    while (u != null) {
+      if (u instanceof AssignStmt) {
+        AssignStmt def = (AssignStmt) u;
+        Value rop = def.getRightOp();
+        if (rop instanceof NegExpr) {
+          boolean isDouble = u.hasTag(DoubleOpTag.NAME);
+          boolean isFloat = u.hasTag(FloatOpTag.NAME);
+          boolean isLong = u.hasTag(LongOpTag.NAME);
+          NegExpr neg = ((NegExpr) rop);
+          Value op = neg.getOp();
+          Type t = null;
+          //As for ints, shorts etc.: the type assigner
+          //already handles this automatically
+          if (isDouble) {
+            t = DoubleType.v();
+          } else if (isFloat) {
+            t = FloatType.v();
+          } else if (isLong) {
+            t = LongType.v();
+          }
+          if (t != null) {
+            Local l = (Local) op;
+            l.setType(t);
+          }
+
+        }
+        if (rop instanceof BinopExpr) {
+          boolean isDouble = u.hasTag(DoubleOpTag.NAME);
+          boolean isFloat = u.hasTag(FloatOpTag.NAME);
+          boolean isInt = u.hasTag(IntOpTag.NAME);
+          boolean isShort = u.hasTag(ShortOpTag.NAME);
+          boolean isByte = u.hasTag(ByteOpTag.NAME);
+          if (rop instanceof AddExpr || rop instanceof SubExpr || rop instanceof MulExpr || rop instanceof DivExpr
+              || rop instanceof RemExpr || rop instanceof XorExpr || rop instanceof UshrExpr || rop instanceof ShrExpr
+              || rop instanceof ShlExpr || rop instanceof AndExpr || rop instanceof OrExpr) {
+            Type t = null;
+            if (isDouble) {
+              t = DoubleType.v();
+            } else if (isFloat) {
+              t = FloatType.v();
+            } else if (isInt) {
+              t = IntType.v();
+            } else if (isShort) {
+              t = ShortType.v();
+            } else if (isByte) {
+              t = ByteType.v();
+            }
+            if (t != null) {
+              Local left = (Local) def.getLeftOp();
+              left.setType(t);
+            }
+          }
+          BinopExpr bop = (BinopExpr) rop;
+          for (ValueBox cmp : bop.getUseBoxes()) {
+            Value c = cmp.getValue();
+            if (c instanceof Constant) {
+              if (isDouble) {
+                if (c instanceof LongConstant) {
+                  long vVal = ((LongConstant) c).value;
+                  cmp.setValue(DoubleConstant.v(Double.longBitsToDouble(vVal)));
+                }
+              } else if (isFloat && c instanceof IntConstant) {
+                int vVal = ((IntConstant) c).value;
+                cmp.setValue(FloatConstant.v(Float.intBitsToFloat(vVal)));
+              }
+            } else {
+              Local t = (Local) cmp.getValue();
+              if (isDouble) {
+                t.setType(DoubleType.v());
+              } else if (isFloat) {
+                t.setType(FloatType.v());
+              }
+            }
+          }
+        }
+
+      }
+      Stmt s = (Stmt) u;
+      if (s.containsInvokeExpr()) {
+        InvokeExpr inv = s.getInvokeExpr();
+        for (int pidx = 0; pidx < inv.getArgCount(); pidx++) {
+          Value arg = inv.getArg(pidx);
+          if (arg instanceof Constant) {
+            Type t = inv.getMethodRef().getParameterType(pidx);
+            if (t instanceof DoubleType && arg instanceof LongConstant) {
+              long vVal = ((LongConstant) arg).value;
+              inv.setArg(pidx, DoubleConstant.v(Double.longBitsToDouble(vVal)));
+            }
+            if (t instanceof FloatType && arg instanceof IntConstant) {
+              int vVal = ((IntConstant) arg).value;
+              inv.setArg(pidx, FloatConstant.v(Float.intBitsToFloat(vVal)));
+            }
+          }
+        }
+      }
+      u = units.getSuccOf(u);
+    }
+    for (Unit u1 : units) {
+      if (u1 instanceof AssignStmt) {
+        AssignStmt assign = (AssignStmt) u1;
+        Type tl = assign.getLeftOp().getType();
+        Value rop = assign.getRightOp();
+        if (rop instanceof CastExpr) {
+          CastExpr ce = (CastExpr) rop;
+          if (ce.getCastType() instanceof DoubleType) {
+            if (ce.getOp() instanceof LongConstant) {
+              LongConstant lc = (LongConstant) ce.getOp();
+              long vVal = lc.value;
+              assign.setRightOp(DoubleConstant.v(Double.longBitsToDouble(vVal)));
+            }
+          }
+          if (ce.getCastType() instanceof FloatType) {
+            if (ce.getOp() instanceof IntConstant) {
+              IntConstant ic = (IntConstant) ce.getOp();
+              int vVal = ic.value;
+              assign.setRightOp(FloatConstant.v(Float.intBitsToFloat(vVal)));
+            }
+          }
+        }
+        if (rop instanceof Constant) {
+          Constant c = (Constant) assign.getRightOp();
+          if (tl instanceof DoubleType && c instanceof LongConstant) {
+            long vVal = ((LongConstant) c).value;
+            assign.setRightOp(DoubleConstant.v(Double.longBitsToDouble(vVal)));
+          } else if (tl instanceof FloatType && c instanceof IntConstant) {
+            int vVal = ((IntConstant) c).value;
+            assign.setRightOp(FloatConstant.v(Float.intBitsToFloat(vVal)));
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Removes all dexpler specific tags. Saves some memory.
+   * 
+   * @param unit
+   *          the statement
+   */
+  private void removeDexplerTags(Unit unit) {
+    for (Iterator<Tag> it = unit.getTags().iterator(); it.hasNext();) {
+      Tag t = it.next();
+      if (t instanceof DexplerTag) {
+        it.remove();
+      }
+    }
+  }
+
+  /**
+   * Checks whether the Jimple code contains unrealizable casts between reference types and primitives
+   */
+  private void checkUnrealizableCasts() {
+    for (Unit u : jBody.getUnits()) {
+      if (u instanceof AssignStmt) {
+        AssignStmt assignStmt = (AssignStmt) u;
+        Value rop = assignStmt.getRightOp();
+        if (rop instanceof CastExpr) {
+          CastExpr cast = (CastExpr) rop;
+          if ((cast.getCastType() instanceof PrimType && cast.getOp().getType() instanceof RefType)
+              || (cast.getCastType() instanceof RefType && cast.getOp().getType() instanceof PrimType)) {
+
+            throw new RuntimeException("Unrealizable cast " + u + " detected in method " + jBody.getMethod().getSignature());
+          }
+        }
+      }
+    }
   }
 
   /**

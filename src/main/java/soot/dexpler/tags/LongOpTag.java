@@ -42,9 +42,11 @@ package soot.dexpler.tags;
  * #L%
  */
 
+import soot.LongType;
+import soot.Type;
 import soot.tagkit.Tag;
 
-public class LongOpTag implements Tag {
+public class LongOpTag implements Tag, DexplerTag {
 
   public static final String NAME = "LongOpTag";
 
@@ -56,5 +58,10 @@ public class LongOpTag implements Tag {
   @Override
   public byte[] getValue() {
     return new byte[1];
+  }
+
+  @Override
+  public Type getDefiniteType() {
+    return LongType.v();
   }
 }

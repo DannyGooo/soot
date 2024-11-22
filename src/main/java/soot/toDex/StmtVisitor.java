@@ -101,7 +101,6 @@ import soot.toDex.instructions.SparseSwitchPayload;
 import soot.toDex.instructions.SwitchPayload;
 import soot.util.HashMultiMap;
 import soot.util.MultiMap;
-import soot.util.Switchable;
 
 /**
  * A visitor that builds a list of instructions from the Jimple statements it visits.<br>
@@ -604,10 +603,12 @@ public class StmtVisitor implements StmtSwitch {
         numbers.add(((LongConstant) val).value);
       } else if (val instanceof FloatConstant) {
         elementSize = Math.max(elementSize, 4);
-        numbers.add(((FloatConstant) val).value);
+        int num = Float.floatToIntBits(((FloatConstant) val).value);
+        numbers.add(num);
       } else if (val instanceof DoubleConstant) {
         elementSize = Math.max(elementSize, 8);
-        numbers.add(((DoubleConstant) val).value);
+        long num = Double.doubleToLongBits(((DoubleConstant) val).value);
+        numbers.add(num);
       } else {
         return null;
       }
@@ -783,9 +784,6 @@ public class StmtVisitor implements StmtSwitch {
     // create sparse-switch instruction that references the payload
     Value key = stmt.getKey();
     Stmt defaultTarget = (Stmt) stmt.getDefaultTarget();
-    if (defaultTarget == stmt) {
-      throw new RuntimeException("Looping switch block detected");
-    }
     addInsn(buildSwitchInsn(Opcode.SPARSE_SWITCH, key, defaultTarget, payload, stmt), stmt);
   }
 

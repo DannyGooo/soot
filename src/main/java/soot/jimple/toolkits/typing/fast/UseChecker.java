@@ -114,7 +114,7 @@ public class UseChecker extends AbstractStmtSwitch {
 
   private final JimpleBody jb;
 
-  private Typing tg;
+  private ITyping tg;
   private IUseVisitor uv;
 
   private LocalDefs defs = null;
@@ -126,7 +126,7 @@ public class UseChecker extends AbstractStmtSwitch {
     this.jb = jb;
   }
 
-  public void check(Typing tg, IUseVisitor uv) {
+  public void check(ITyping tg, IUseVisitor uv) {
     if (tg == null) {
       throw new RuntimeException("null typing passed to useChecker");
     }
@@ -395,8 +395,12 @@ public class UseChecker extends AbstractStmtSwitch {
           // At the very least, the the type for this array should be whatever its
           // base type is
           et = bt;
-          logger.warn("Could not find any indication on the array type of " + stmt + " in " + jb.getMethod().getSignature(),
-              ", assuming its base type is " + bt);
+          if (logger.isDebugEnabled()) {
+            //This can happen in rare cases in Android for int/float and long/double arrays
+            logger.debug(
+                "Could not find any indication on the array type of " + stmt + " in " + jb.getMethod().getSignature(),
+                ", assuming its base type is " + bt);
+          }
         }
 
         at = et.makeArrayType();

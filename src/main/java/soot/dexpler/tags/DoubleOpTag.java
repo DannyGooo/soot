@@ -42,9 +42,11 @@ package soot.dexpler.tags;
  * #L%
  */
 
+import soot.DoubleType;
+import soot.Type;
 import soot.tagkit.Tag;
 
-public class DoubleOpTag implements Tag {
+public class DoubleOpTag implements Tag, DexplerTag {
 
   public static final String NAME = "DoubleOpTag";
 
@@ -56,5 +58,10 @@ public class DoubleOpTag implements Tag {
   @Override
   public byte[] getValue() {
     return new byte[1];
+  }
+
+  @Override
+  public Type getDefiniteType() {
+    return DoubleType.v();
   }
 }
