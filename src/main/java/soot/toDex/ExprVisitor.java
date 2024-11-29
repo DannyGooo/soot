@@ -238,7 +238,7 @@ public class ExprVisitor implements ExprSwitch {
   }
 
   private boolean isCallToSuper(SpecialInvokeExpr sie) {
-    SootClass classWithInvokation = sie.getMethod().getDeclaringClass();
+    SootClass classWithInvokation = sie.getMethodRef().getDeclaringClass();
     SootClass currentClass = stmtV.getBelongingClass();
 
     while (currentClass != null) {

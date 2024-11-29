@@ -1307,7 +1307,16 @@ public class DexBody {
    *          type constraints (these might be multiple valid possibilities)
    */
   private void handleKnownDexArrayTypes(Body b, Jimple jimple, MultiMap<Local, Type> typeConstraints) {
-
+    Map<Local, Integer> localsSingleDefinitions = new HashMap<>();
+    for (Unit u : b.getUnits()) {
+      if (u instanceof DefinitionStmt) {
+        Value l = ((DefinitionStmt) u).getLeftOp();
+        if (l instanceof Local) {
+          int counter = localsSingleDefinitions.getOrDefault(l, 0);
+          localsSingleDefinitions.put((Local) l, counter + 1);
+        }
+      }
+    }
     UnitPatchingChain units = jBody.getUnits();
     Unit u = units.getFirst();
     while (u != null) {
@@ -1321,7 +1330,17 @@ public class DexBody {
               Type definiteType = dexplerTypeTag.getDefiniteType();
               if (definiteType != null) {
                 Local prev = (Local) assign.getLeftOp();
-                prev.setType(definiteType);
+                if (!(definiteType instanceof PrimType) || localsSingleDefinitions.getOrDefault(prev, 0) == 1) {
+                  prev.setType(definiteType);
+                } else {
+                  //Since there are multiple definitions, e.g. for a byte retrieved from a byte[],
+                  //there could be another non-distinct definition which uses the same variable as an int.
+                  PrimType[] wider = DexType.getWiderTypes((PrimType) definiteType);
+                  if (wider.length == 1) {
+                    prev.setType(wider[0]);
+                  }
+                }
+
                 ArrayType tp = ArrayType.v(definiteType, 1);
 
                 ArrayRef array = (ArrayRef) rop;

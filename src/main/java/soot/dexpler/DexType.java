@@ -37,6 +37,7 @@ import soot.DoubleType;
 import soot.FloatType;
 import soot.IntType;
 import soot.LongType;
+import soot.PrimType;
 import soot.RefType;
 import soot.ShortType;
 import soot.Type;
@@ -225,5 +226,15 @@ public class DexType {
   @Override
   public String toString() {
     return name;
+  }
+
+  public static PrimType[] getWiderTypes(PrimType tp) {
+    if (tp instanceof ByteType) {
+      return new PrimType[] { tp, IntType.v(), ShortType.v() };
+    }
+    if (tp instanceof ShortType) {
+      return new PrimType[] { tp, IntType.v() };
+    }
+    return new PrimType[] { tp };
   }
 }
