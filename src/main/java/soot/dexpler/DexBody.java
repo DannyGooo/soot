@@ -1307,12 +1307,13 @@ public class DexBody {
    *          type constraints (these might be multiple valid possibilities)
    */
   private void handleKnownDexArrayTypes(Body b, Jimple jimple, MultiMap<Local, Type> typeConstraints) {
-    Set<Local> localsSingleDefinitions = new HashSet<>(b.getLocals());
+    Map<Local, Integer> localsSingleDefinitions = new HashMap<>();
     for (Unit u : b.getUnits()) {
       if (u instanceof DefinitionStmt) {
         Value l = ((DefinitionStmt) u).getLeftOp();
         if (l instanceof Local) {
-          localsSingleDefinitions.remove(l);
+          int counter = localsSingleDefinitions.getOrDefault(l, 0);
+          localsSingleDefinitions.put((Local) l, counter++);
         }
       }
     }
@@ -1329,7 +1330,7 @@ public class DexBody {
               Type definiteType = dexplerTypeTag.getDefiniteType();
               if (definiteType != null) {
                 Local prev = (Local) assign.getLeftOp();
-                if (!(definiteType instanceof PrimType) || localsSingleDefinitions.contains(prev)) {
+                if (!(definiteType instanceof PrimType) || localsSingleDefinitions.getOrDefault(prev, 0) == 1) {
                   prev.setType(definiteType);
                 } else {
                   //Since there are multiple definitions, e.g. for a byte retrieved from a byte[],
