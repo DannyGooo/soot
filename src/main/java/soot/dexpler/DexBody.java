@@ -1313,7 +1313,7 @@ public class DexBody {
         Value l = ((DefinitionStmt) u).getLeftOp();
         if (l instanceof Local) {
           int counter = localsSingleDefinitions.getOrDefault(l, 0);
-          localsSingleDefinitions.put((Local) l, counter++);
+          localsSingleDefinitions.put((Local) l, counter + 1);
         }
       }
     }
